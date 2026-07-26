@@ -1,0 +1,426 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseRisk AI - Healthcare Risk Analytics & Clinical Decision Support</title>
+    <!-- Google Fonts & Plotly.js -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation Header -->
+        <header class="app-header">
+            <div class="brand-section">
+                <div class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <div>
+                    <h1 class="brand-title">PulseRisk AI</h1>
+                    <p class="brand-subtitle">Clinical Decision Support & 30-Day Readmission Risk Engine</p>
+                </div>
+            </div>
+
+            <!-- Center Tabs -->
+            <nav class="nav-tabs">
+                <button class="tab-btn active" data-tab="tab-assessment">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+                    Patient Assessment
+                </button>
+                <button class="tab-btn" data-tab="tab-analytics" id="btn-tab-analytics">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                    Population Analytics
+                </button>
+                <button class="tab-btn" data-tab="tab-registry" id="btn-tab-registry">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Patient Registry
+                </button>
+            </nav>
+
+            <!-- Right System Tools -->
+            <div class="header-tools">
+                <div class="system-status" title="FastAPI Backend & SQLite Connection Operational">
+                    <span class="status-dot"></span>
+                    <span class="status-text">System Live</span>
+                </div>
+                <button class="btn-tool" onclick="openModelMetricsModal()" title="View ML Model Accuracy & Features">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    Model Metrics
+                </button>
+                <button class="btn-tool accent" onclick="openBatchUploadModal()" title="Run Batch Inference via CSV">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Batch CSV
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI Metrics Banner -->
+        <section class="kpi-grid" id="kpi-banner">
+            <div class="kpi-card">
+                <span class="kpi-title">Total Assessed Patients</span>
+                <span class="kpi-value" id="kpi-total">--</span>
+                <span class="kpi-subtext">Active Database Cohort</span>
+            </div>
+            <div class="kpi-card danger">
+                <span class="kpi-title">High Risk Patients</span>
+                <span class="kpi-value" id="kpi-high-risk">--</span>
+                <span class="kpi-subtext">> 60% Readmission Probability</span>
+            </div>
+            <div class="kpi-card warning">
+                <span class="kpi-title">Average Population Risk</span>
+                <span class="kpi-value" id="kpi-avg-risk">--%</span>
+                <span class="kpi-subtext">Overall 30-Day Model Baseline</span>
+            </div>
+            <div class="kpi-card success">
+                <span class="kpi-title">Low Risk Cohort</span>
+                <span class="kpi-value" id="kpi-low-risk">--</span>
+                <span class="kpi-subtext">&lt; 30% Readmission Probability</span>
+            </div>
+        </section>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="content-area">
+            <!-- TAB 1: PATIENT RISK ASSESSMENT -->
+            <div class="tab-pane active" id="tab-assessment">
+                <div class="grid-2col">
+                    <!-- Left: Clinical Input Form (Module A & B) -->
+                    <div class="glass-panel">
+                        <div class="panel-header">
+                            <div>
+                                <h2>Patient Data Ingestion</h2>
+                                <p class="panel-sub">Enter EHR metrics or click preset profile for quick inference</p>
+                            </div>
+                            <div class="preset-buttons">
+                                <span class="preset-label">Presets:</span>
+                                <button type="button" class="btn-chip" onclick="loadPreset('high_risk_diabetic')">Severe Diabetic</button>
+                                <button type="button" class="btn-chip" onclick="loadPreset('moderate_risk_copd')">COPD Moderate</button>
+                                <button type="button" class="btn-chip" onclick="loadPreset('low_risk_routine')">Routine Low Risk</button>
+                                <button type="button" class="btn-chip" onclick="loadPreset('elderly_heart_failure')">Heart Failure</button>
+                                <button type="button" class="btn-chip" onclick="loadPreset('complex_renal')">Complex Renal</button>
+                            </div>
+                        </div>
+
+                        <form id="patient-form" onsubmit="submitAssessment(event)">
+                            <div class="form-section-title">Demographics & Identification</div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="patient_name">Patient Full Name</label>
+                                    <input type="text" id="patient_name" value="Eleanor Vance" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="age">Age (Years)</label>
+                                    <input type="number" id="age" value="74" min="18" max="110" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="gender">Gender</label>
+                                    <select id="gender" required>
+                                        <option value="Female">Female</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-section-title">Healthcare Utilization (Past 12 Months)</div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="prior_inpatient_visits">Prior Inpatient Stays</label>
+                                    <input type="number" id="prior_inpatient_visits" value="4" min="0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="emergency_visits">Emergency Dept Visits</label>
+                                    <input type="number" id="emergency_visits" value="3" min="0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="length_of_stay">Index Stay Length (Days)</label>
+                                    <input type="number" id="length_of_stay" value="8" min="1" required>
+                                </div>
+                            </div>
+
+                            <div class="form-section-title">Vitals & Laboratory Biomarkers</div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="glucose_level">Blood Glucose (mg/dL)</label>
+                                    <input type="number" id="glucose_level" step="0.1" value="245.0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="hba1c_level">HbA1c Level (%)</label>
+                                    <input type="number" id="hba1c_level" step="0.1" value="10.4" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="systolic_bp">Systolic BP (mmHg)</label>
+                                    <input type="number" id="systolic_bp" value="158" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="diastolic_bp">Diastolic BP (mmHg)</label>
+                                    <input type="number" id="diastolic_bp" value="92" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="heart_rate">Heart Rate (bpm)</label>
+                                    <input type="number" id="heart_rate" value="88" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="bmi">BMI (kg/m²)</label>
+                                    <input type="number" id="bmi" step="0.1" value="34.2" required>
+                                </div>
+                            </div>
+
+                            <div class="form-section-title">Comorbidities & Diagnosis</div>
+                            <div class="checkbox-grid">
+                                <label class="checkbox-card">
+                                    <input type="checkbox" id="has_diabetes" checked> Diabetes
+                                </label>
+                                <label class="checkbox-card">
+                                    <input type="checkbox" id="has_hypertension" checked> Hypertension
+                                </label>
+                                <label class="checkbox-card">
+                                    <input type="checkbox" id="has_heart_failure" checked> Heart Failure
+                                </label>
+                                <label class="checkbox-card">
+                                    <input type="checkbox" id="has_copd"> COPD
+                                </label>
+                                <label class="checkbox-card">
+                                    <input type="checkbox" id="has_ckd" checked> Kidney Disease (CKD)
+                                </label>
+                                <label class="checkbox-card">
+                                    <input type="checkbox" id="has_asthma"> Asthma
+                                </label>
+                            </div>
+
+                            <div class="form-grid" style="margin-top: 1rem;">
+                                <div class="form-group">
+                                    <label for="primary_diagnosis">Primary Diagnosis</label>
+                                    <select id="primary_diagnosis">
+                                        <option value="Endocrine">Endocrine / Diabetes</option>
+                                        <option value="Cardiovascular">Cardiovascular</option>
+                                        <option value="Respiratory">Respiratory</option>
+                                        <option value="Renal">Renal</option>
+                                        <option value="General Medicine">General Medicine</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="discharge_destination">Discharge Plan</label>
+                                    <select id="discharge_destination">
+                                        <option value="SNF">Skilled Nursing (SNF)</option>
+                                        <option value="Home Health">Home Health Care</option>
+                                        <option value="Home">Home (Routine)</option>
+                                        <option value="Rehab">Rehabilitation</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn-primary" id="btn-evaluate">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                Run ML Risk Inference
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Right: ML Inference Results & Explainable AI (Module C & D) -->
+                    <div class="glass-panel" id="results-panel">
+                        <div class="panel-header">
+                            <div>
+                                <h2>Clinical Decision Support Engine</h2>
+                                <p class="panel-sub">Real-Time Risk Scoring & Explainable AI Feature Attribution</p>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <button class="btn-chip" id="btn-print-report" style="display: none;" onclick="printClinicalReport()">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                    Print Report
+                                </button>
+                                <span class="badge" id="risk-badge">Ready for Input</span>
+                            </div>
+                        </div>
+
+                        <div id="empty-state" class="empty-state">
+                            <div class="empty-icon">🩺</div>
+                            <h3>No Patient Assessment Executed</h3>
+                            <p>Fill out the clinical form on the left or select a preset profile, then click "Run ML Risk Inference" to compute the 30-day readmission risk.</p>
+                        </div>
+
+                        <div id="results-content" style="display: none;">
+                            <!-- Risk Gauge Banner -->
+                            <div class="risk-summary-card" id="risk-card-container">
+                                <div class="risk-gauge-wrapper">
+                                    <span class="risk-score-val" id="res-risk-score">0.0%</span>
+                                    <span class="risk-score-lbl">30-Day Readmission Probability</span>
+                                </div>
+                                <div class="risk-details">
+                                    <div class="patient-id-tag" id="res-patient-id">PAT-0000</div>
+                                    <h3 id="res-patient-name">Patient Name</h3>
+                                    <p id="res-risk-summary-text">Calculated via ML Gradient Boosting / Random Forest Pipeline</p>
+                                </div>
+                            </div>
+
+                            <!-- Module D: Explainable AI (XAI) Feature Attribution -->
+                            <div class="xai-section">
+                                <div class="section-title">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/><path d="M2 12h20"/></svg>
+                                    Explainable AI (XAI) - Patient Feature Attribution
+                                </div>
+                                <p class="xai-subtitle">Key clinical factors driving this specific patient's risk prediction up or down:</p>
+                                
+                                <div id="xai-drivers-list" class="xai-list">
+                                    <!-- Dynamic XAI Items injected here -->
+                                </div>
+                            </div>
+
+                            <!-- Clinical Action Plan -->
+                            <div class="action-plan-section">
+                                <div class="section-title">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                    Tailored Clinical Action Plan
+                                </div>
+                                <ul id="clinical-recs-list" class="recs-list">
+                                    <!-- Dynamic recommendations -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: POPULATION ANALYTICS DASHBOARD (Module E) -->
+            <div class="tab-pane" id="tab-analytics">
+                <div class="analytics-header">
+                    <h2>Population-Level Readmission Analytics</h2>
+                    <button class="btn-chip" onclick="fetchKPIsAndAnalytics()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        Refresh Analytics
+                    </button>
+                </div>
+                <div class="charts-grid">
+                    <div class="glass-panel chart-card">
+                        <h3>Readmission Risk Tier Distribution</h3>
+                        <div id="chart-risk-tier" class="plotly-chart"></div>
+                    </div>
+                    <div class="glass-panel chart-card">
+                        <h3>Average Readmission Risk by Age Cohort</h3>
+                        <div id="chart-age-risk" class="plotly-chart"></div>
+                    </div>
+                    <div class="glass-panel chart-card">
+                        <h3>Prior Inpatient Visits vs Readmission Risk</h3>
+                        <div id="chart-visits-risk" class="plotly-chart"></div>
+                    </div>
+                    <div class="glass-panel chart-card">
+                        <h3>Comorbidity Impact on Readmission Rate</h3>
+                        <div id="chart-comorbidity-risk" class="plotly-chart"></div>
+                    </div>
+                    <div class="glass-panel chart-card full-width-chart">
+                        <h3>Readmission Risk by Primary Diagnosis Category</h3>
+                        <div id="chart-diagnosis-risk" class="plotly-chart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: PATIENT REGISTRY -->
+            <div class="tab-pane" id="tab-registry">
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Assessed Patient Registry</h2>
+                            <p class="panel-sub">Manage and inspect historical patient assessments</p>
+                        </div>
+                        <div class="registry-controls">
+                            <input type="text" id="search-input" placeholder="Search by name, ID, diagnosis..." onkeyup="filterPatients()">
+                            <select id="filter-risk" onchange="filterPatients()">
+                                <option value="All">All Risk Tiers</option>
+                                <option value="High Risk">High Risk Only</option>
+                                <option value="Medium Risk">Medium Risk Only</option>
+                                <option value="Low Risk">Low Risk Only</option>
+                            </select>
+                            <button class="btn-chip" onclick="downloadCohortCSV()" title="Download Registry CSV">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Export CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Patient ID</th>
+                                    <th>Name</th>
+                                    <th>Age / Gender</th>
+                                    <th>Primary Diagnosis</th>
+                                    <th>Prior Visits</th>
+                                    <th>Risk Score</th>
+                                    <th>Risk Tier</th>
+                                    <th>Assessed Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patients-table-body">
+                                <tr>
+                                    <td colspan="9" style="text-align: center; color: var(--text-muted);">Loading registry data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal 1: Patient Detail & Trajectory Modal -->
+    <div id="patient-modal" class="modal-overlay" onclick="closeModal(event, 'patient-modal')">
+        <div class="modal-content glass-panel" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modal-title">Patient Clinical File</h3>
+                <button class="close-btn" onclick="closeModal(null, 'patient-modal')">&times;</button>
+            </div>
+            <div id="modal-body" class="modal-body">
+                <!-- Modal dynamic content injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: ML Model Metrics & Info Modal -->
+    <div id="model-modal" class="modal-overlay" onclick="closeModal(event, 'model-modal')">
+        <div class="modal-content glass-panel" onclick="event.stopPropagation()" style="max-width: 750px;">
+            <div class="modal-header">
+                <h3>PulseRisk AI Model Performance Metrics</h3>
+                <button class="close-btn" onclick="closeModal(null, 'model-modal')">&times;</button>
+            </div>
+            <div id="model-modal-body" class="modal-body">
+                <div style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading model telemetry...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Batch CSV Upload Modal -->
+    <div id="batch-modal" class="modal-overlay" onclick="closeModal(event, 'batch-modal')">
+        <div class="modal-content glass-panel" onclick="event.stopPropagation()" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Batch Patient Risk Prediction (CSV / JSON)</h3>
+                <button class="close-btn" onclick="closeModal(null, 'batch-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Upload a CSV file containing patient clinical features to compute batch readmission risks.
+                </p>
+
+                <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-file-input').click()">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📄</div>
+                    <p style="font-weight: 600;">Click to select or drag & drop CSV file</p>
+                    <p style="font-size: 0.78rem; color: var(--text-muted);">Required headers: age, gender, prior_inpatient_visits, emergency_visits, length_of_stay, glucose_level, hba1c_level, systolic_bp, diastolic_bp, heart_rate, bmi, has_diabetes, etc.</p>
+                    <input type="file" id="csv-file-input" accept=".csv" style="display: none;" onchange="handleCSVFileSelect(event)">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                    <button class="btn-chip" onclick="downloadSampleCSVTemplate()">Download Sample Template</button>
+                    <button class="btn-primary" id="btn-run-batch" onclick="processCSVBatch()" disabled>Run Batch Inference</button>
+                </div>
+                <div id="batch-status" style="margin-top: 1rem; font-size: 0.85rem; color: var(--primary);"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
